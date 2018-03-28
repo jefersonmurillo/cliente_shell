@@ -1,3 +1,5 @@
+function noOp() {};
+
 exports.Cleanup = function Cleanup(callback) {
 
   // attach user callback to the process event emitter
