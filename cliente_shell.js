@@ -1,9 +1,5 @@
 var net = require('net')
 var lib = require("readline")
-var inquirer = require('inquirer')
-var chalk = require('chalk')
-var dateformat = require('dateformat')
-var ip = require('ip')
 
 var client = new net.Socket()
 
@@ -19,69 +15,66 @@ var nombre = null
 var usuarios = ""
 var seleccionado
 
-var bienvenida = '                                  CHATNET v0.3                        \n'
-bienvenida += '                                desarrollada por                   \n'
-bienvenida += '                  jeferson murillo - pedro lopez - jean galviz      \n'
-bienvenida += '                       soporte - jmurilloariza@gmail.com            \n'
+var ip=require("ip");
+var res=ip.address().split(".");
+var num1=res[0];
+var num2=res[1];
+var num3=0;
+var num4=0;
+var ip=null;
+var intervalo=setInterval(()=>{
+  var ips=num1+"."+num2+"."+num3+"."+num4;
+  var aux1 = new net.Socket()
+  aux1.connect(3000, ips,()=>{
+    aux1.on("data",(data)=>{
+      var obj=JSON.parse(data.toString("utf-8"));
+      if(obj.tipo!=null){
+        ip=ips;
+      }
+      aux1.end();
+      cerrar();
+    });
+  })
+  aux1.on("error",()=>{
+    aux1.end();
+  });
+  if(num4<=255){
+    num4++;
+  }else if(num3<=255){
+    num3++;
+    num4=0;
+  }
+},1);
 
-var help = chalk.yellowBright('HELP!\n')
-help += chalk.green("Escribe el simbolo") + chalk.greenBright(" # ") + chalk.green(" seguido del el numero que aparece al lado de cada ")
-help += chalk.green("usuario en la lista de conectados para enviar un mensaje personal. Ejemplo: ") + chalk.greenBright("# usuario") + "\n\n" 
-help += chalk.green("Tambien puedes enviar un mensaje difusion a todos los usuario conectados, para") + "\n"
-help += chalk.green(" ello escribe ") + chalk.greenBright("#*") + "\n"
-
-console.log(chalk.yellow(bienvenida))
-rl.question(chalk.green('Como te llamas?: '), (answer) => {
+function cerrar(){
+console.log('\x1Bc')
+  rl.question('Como te llamas?: ', (answer) => {
   nombre = answer
-  client.connect(3000, ip.address())
+  client.connect(3000, ip)
   client.write(JSON.stringify({tipo:1, nombre:nombre}))
   console.log('\x1Bc')
   seleccionado = 0
-
 })
+  clearInterval(intervalo);
+}
 
 client.on('data', (data) => {
-    var obj = JSON.parse(data.toString("utf-8"))
-    if(obj.tipo==1){
-        id = obj.id
-    }else if(obj.tipo == 2 || obj.tipo == 3){
-      if(obj.id_emisor == id || obj.tipo == 2){
-        chats[obj.destinatario] += "[" + dateformat() + "] " + obj.username + ": " + obj.mensaje + "\n"
-      }else{
-        chats[obj.id_emisor] += obj.username + " : " + obj.mensaje + "\n"
-      }
-
-      limpiarMostrar()
-    }else if(obj.tipo == 4){
-      console.log(chalk.yellow(bienvenida))
-
-      var usuariosTemp = ''
-      var chatsTemp = {}
-      var idsChatsTemp = {}
-
-      obj.usuarios=JSON.parse(obj.usuarios)
-
-      for (var i = 0; i < obj.usuarios.length; i++) {
-        if(obj.usuarios[i].id != id){
-          usuariosTemp += chalk.cyan("--") + " [" + i + "]" + obj.usuarios[i].nombre + "\n"
-          idsChatsTemp[i] = obj.usuarios[i].id
-          chatsTemp[obj.usuarios[i].id] = "Chat " + obj.usuarios[i].nombre + "\n\n"
-          if(chats[obj.usuarios[i].id] != null){
-            chatsTemp[obj.usuarios[i].id] = chats[obj.usuarios[i].id]
-          }
-        }
-      }
-      chats = chatsTemp
-      idsChats = idsChatsTemp
-      usuarios = usuariosTemp
-      limpiarMostrar()
+  var res=data.toString("utf-8");
+  try {
+        var obj=JSON.parse(res);
+        elegirEntrada(obj);
+    }catch(e){
+      var res2=res.split("\n");
+         for (var i = 0; i < res2.length-1; i++) {
+             var obj=JSON.parse(JSON.stringify(res2[i]));
+            elegirEntrada(obj);
+         }
     }
  })
 rl.on('line', (line) => {
   if(nombre != null){
-    var res=line.split(" ")
-    if(res.length > 1 && res[0] == "#" && idsChats[res[1]] != null){
-      seleccionado = res[1]
+    if(line.length >1 && line.charAt(0) == "#" && idsChats[line.charAt(1)] != null){
+      seleccionado = line.charAt(1)
       limpiarMostrar()
     }else{
       if(seleccionado==0){
@@ -94,30 +87,45 @@ rl.on('line', (line) => {
 })
 
 function  limpiarMostrar(){
-  if(nombre != null){
     console.log('\x1Bc')
-    console.log(chalk.yellow(bienvenida))
-    console.log(help)
-    console.log(chalk.cyan('----------------------------- Usuarios Conectados -----------------------------\n'))
     console.log(usuarios)
-    console.log(chalk.cyan('-------------------------------------------------------------------------------\n'))
     console.log(chats[idsChats[seleccionado]])
-   }
-  }
-
-  function exitHandler(options, err) {
-    client.end()
-    client = null
-      if (options.cleanup) console.log('clean')
-      if (err) console.log(err.stack)
-      if (options.exit) process.exit()
   }
   
-  process.on('exit', exitHandler.bind(null,{cleanup:true}))
-
-  //catches ctrl+c event
-  process.on('SIGINT', exitHandler.bind(null, {exit:true}))
-
-  // catches "kill pid" (for example: nodemon restart)
-  process.on('SIGUSR1', exitHandler.bind(null, {exit:true}))
-  process.on('SIGUSR2', exitHandler.bind(null, {exit:true}))
+  function elegirEntrada(obj){
+    if(typeof obj =="string"){
+      obj= JSON.parse(obj);
+    }
+    if(obj.tipo==1){
+              id = obj.id
+          }else if(obj.tipo == 2 || obj.tipo == 3){
+            if(obj.id_emisor == id || obj.tipo == 2){
+              chats[obj.destinatario] +=  obj.username + ": " + obj.mensaje + "\n"
+            }else{
+              chats[obj.id_emisor] += obj.username + " : " + obj.mensaje + "\n"
+            }
+            limpiarMostrar()
+          }else if(obj.tipo == 4){
+            var usuariosTemp = "Escriba # y el numero de la persona con la que quiere hablar personalmente \n"+
+            "ejemplo Escribiendo #0 se puede hablar en el chat Grupal\n\n";
+            var chatsTemp = {}
+            var idsChatsTemp = {}
+            for (var i = 0; i < obj.usuarios.length; i++) {
+              if(obj.usuarios[i].id != id){
+                usuariosTemp += "[" + i + "]" + obj.usuarios[i].nombre + "  "
+                idsChatsTemp[i] = obj.usuarios[i].id
+                chatsTemp[obj.usuarios[i].id] = "Chat " + obj.usuarios[i].nombre + "\n\n"
+                if(chats[obj.usuarios[i].id] != null){
+                  chatsTemp[obj.usuarios[i].id] = chats[obj.usuarios[i].id]
+                }
+              }
+            }
+            chats = chatsTemp
+            idsChats = idsChatsTemp
+            usuarios = usuariosTemp+"\n"
+            if(idsChats[seleccionado]==null){
+              seleccionado=0;
+            }
+            limpiarMostrar()
+          }
+  }
