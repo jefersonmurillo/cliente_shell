@@ -44,43 +44,48 @@ client.on('data', (data) => {
     var obj = JSON.parse(data.toString("utf-8"))
     if(obj.tipo === 1){
         id = obj.id;
-    }else if(obj.tipo === 2 || obj.tipo === 3){
-      if(obj.id_emisor === id || obj.tipo === 2){
-        chats[obj.destinatario] += "[" + dateformat() + "] " + obj.username + ": " + obj.mensaje + "\n";
+    }else {
+      if(obj.tipo === 2 || obj.tipo === 3){
+        if(obj.id_emisor === id || obj.tipo === 2){
+          chats[obj.destinatario] += "[" + dateformat() + "] " + obj.username + ": " + obj.mensaje + "\n";
+        }else{
+          chats[obj.id_emisor] += obj.username + " : " + obj.mensaje + "\n";
+        }
+
+        limpiarMostrar();
       }else{
-        chats[obj.id_emisor] += obj.username + " : " + obj.mensaje + "\n";
-      }
+        if(obj.tipo === 4){
+          console.log(chalk.yellow(bienvenida));
 
-      limpiarMostrar();
-    }else if(obj.tipo === 4){
-      console.log(chalk.yellow(bienvenida));
+          var usuariosTemp = '';
+          var chatsTemp = {};
+          var idsChatsTemp = {};
 
-      var usuariosTemp = '';
-      var chatsTemp = {};
-      var idsChatsTemp = {};
+          obj.usuarios=JSON.parse(obj.usuarios);
 
-      obj.usuarios=JSON.parse(obj.usuarios);
-
-      for (var i = 0; i < obj.usuarios.length; i++) {
-        if(obj.usuarios[i].id !== id){
-          usuariosTemp += chalk.cyan("--") + " [" + i + "]" + obj.usuarios[i].nombre + "\n";
-          idsChatsTemp[i] = obj.usuarios[i].id;
-          chatsTemp[obj.usuarios[i].id] = "Chat " + obj.usuarios[i].nombre + "\n\n";
-          if(chats[obj.usuarios[i].id] !== null){
-            chatsTemp[obj.usuarios[i].id] = chats[obj.usuarios[i].id];
+          for (var i = 0; i < obj.usuarios.length; i++) {
+            if(obj.usuarios[i].id !== id){
+              usuariosTemp += chalk.cyan("--") + " [" + i + "]" + obj.usuarios[i].nombre + "\n";
+              idsChatsTemp[i] = obj.usuarios[i].id;
+              chatsTemp[obj.usuarios[i].id] = "Chat " + obj.usuarios[i].nombre + "\n\n";
+              if(chats[obj.usuarios[i].id] !== null){
+                chatsTemp[obj.usuarios[i].id] = chats[obj.usuarios[i].id];
+              }
+            }
           }
+          chats = chatsTemp;
+          idsChats = idsChatsTemp;
+          usuarios = usuariosTemp;
+          limpiarMostrar();
         }
       }
-      chats = chatsTemp;
-      idsChats = idsChatsTemp;
-      usuarios = usuariosTemp;
-      limpiarMostrar();
     }
+
  })
 rl.on('line', (line) => {
   if(nombre !== null){
     var res=line.split(" ");
-    if(res.length > 1 && res[0] === "#" && idsChats[res[1]] != null){
+    if(res.length > 1 && res[0] === "#" && idsChats[res[1]] !== null){
       seleccionado = res[1];
       limpiarMostrar();
     }else{
@@ -94,7 +99,7 @@ rl.on('line', (line) => {
 })
 
 function  limpiarMostrar(){
-  if(nombre != null){
+  if(nombre !== null){
     console.log('\x1Bc');
     console.log(chalk.yellow(bienvenida));
     console.log(help);
@@ -108,9 +113,18 @@ function  limpiarMostrar(){
   function exitHandler(options, err) {
     client.end();
     client = null;
-      if (options.cleanup) console.log('clean');
-      if (err) console.log(err.stack);
-      if (options.exit) process.exit();
+      if (options.cleanup) {
+        console.log('clean');
+      }
+
+      if (err) {
+        console.log(err.stack);
+      }
+
+      if (options.exit) {
+        process.exit();
+      }
+
   }
 
   process.on('exit', exitHandler.bind(null,{cleanup:true}));
